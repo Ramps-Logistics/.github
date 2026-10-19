@@ -1,7 +1,7 @@
 name: Dependabot gate
 
-# Shared check: fails while the calling repo has open critical or high
-# Dependabot alerts. Each repo calls it from dependabot-gate-caller.yml;
+# Shared check: fails while the calling repo has any open Dependabot alert,
+# at any severity. Each repo calls it from dependabot-gate-caller.yml;
 # the org ruleset requires "dependabot-gate / check".
 on:
   workflow_call:
@@ -13,25 +13,25 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Fail on open critical or high Dependabot alerts
+      - name: Fail on any open Dependabot alert
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          alerts=$(gh api --paginate "repos/$REPO/dependabot/alerts?state=open&severity=critical,high&per_page=100" \
+          alerts=$(gh api --paginate "repos/$REPO/dependabot/alerts?state=open&per_page=100" \
             --jq '.[] | "\(.security_advisory.severity)\t\(.dependency.package.name)\t\(.dependency.manifest_path)\t\(.html_url)"')
           if [ -z "$alerts" ]; then
-            echo "No open critical or high Dependabot alerts."
+            echo "No open Dependabot alerts."
             exit 0
           fi
           count=$(printf '%s\n' "$alerts" | wc -l)
           {
-            echo "## $count open critical/high Dependabot alerts"
+            echo "## $count open Dependabot alerts"
             echo
             echo "| Severity | Package | Manifest | Alert |"
             echo "|---|---|---|---|"
             printf '%s\n' "$alerts" | sort | awk -F'\t' '{printf "| %s | %s | %s | %s |\n", $1, $2, $3, $4}'
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "::error::$count open critical/high Dependabot alerts. Fix or dismiss them before merging."
+          echo "::error::$count open Dependabot alerts. Fix or dismiss them before merging."
           exit 1
