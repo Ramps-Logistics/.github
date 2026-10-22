@@ -17,8 +17,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
+          # Dependabot's own PRs are how alerts get fixed; blocking them
+          # would leave a repo with alerts unable to ever clear them.
+          if [ "$AUTHOR" = "dependabot[bot]" ]; then
+            echo "Dependabot PR: allowed so it can fix alerts."
+            exit 0
+          fi
           alerts=$(gh api --paginate "repos/$REPO/dependabot/alerts?state=open&per_page=100" \
             --jq '.[] | "\(.security_advisory.severity)\t\(.dependency.package.name)\t\(.dependency.manifest_path)\t\(.html_url)"')
           if [ -z "$alerts" ]; then
